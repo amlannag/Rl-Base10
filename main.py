@@ -336,7 +336,19 @@ def compute_loss(
     response_length = completions.float().mean().item()
 
     masked_kl_loss = (kl_loss * completion_mask).sum(dim=1) / (completions + epsilon)
-    loss_metric = {"kl": masked_kl_loss.mean().item(), "response_length": response_length}
+    mean_kl = masked_kl_loss.mean().item()
+
+    # Advantage correlations
+    per_seq_kl = masked_kl_loss.detach()
+    corr_advantage_length = utils.correlation(advantages, completions.float())
+    corr_advantage_kl = utils.correlation(advantages, per_seq_kl)
+
+    loss_metric = {
+        "kl": mean_kl,
+        "response_length": response_length,
+        "corr_advantage_length": corr_advantage_length,
+        "corr_advantage_kl": corr_advantage_kl,
+    }
     return loss, loss_metric
 
 

@@ -126,7 +126,7 @@ Once your loss function is implemented, train a small model on the GSM8K dataset
     python main.py \
         --model_name "Qwen/Qwen2-0.5B-Instruct" \
         --num_train_iters 1000 \
-        --eval_iterations 100 \
+        --eval_iterations 20 \
         --output_dir "output/Qwen-0.5B"
     ```
     Feel free to adjust the training arguments in `main.py` as you see fit.
