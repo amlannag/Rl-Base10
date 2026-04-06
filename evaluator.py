@@ -122,7 +122,15 @@ class GSM8kEvaluator(RewardEvaluator):
     
     
     def _parse_int(self, s: str) -> Optional[int]:
-        s = s.strip()
+        s = s.strip().replace(",", "")
+        # Handle decimals like "11.00" → 11
+        try:
+            f = float(s)
+            if f == int(f):
+                return int(f)
+        except ValueError:
+            pass
+        # Fallback: plain integer
         if INT_RE.fullmatch(s):
             try:
                 return int(s)
@@ -149,9 +157,9 @@ class GSM8kEvaluator(RewardEvaluator):
             gt_i = self._parse_int(gt_str)
     
             if pred_i is not None and gt_i is not None:
-                rewards.append(2.0 if pred_i == gt_i else 0.0)
+                rewards.append(2.0 if pred_i == gt_i else -2.0)
             else:
-                rewards.append(2.0 if pred_str == gt_str else 0.0)
+                rewards.append(2.0 if pred_str == gt_str else -2.0)
     
         return rewards
     

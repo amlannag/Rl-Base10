@@ -300,9 +300,45 @@ def compute_loss(
         loss: The computed GRPO loss
         metrics: Dictionary containing additional metrics (response length and kl divergence)
     """
-    # TODO: Implement the GRPO loss function
-    # See README.md Task 2 for implementation steps
-    raise NotImplementedError("Implement compute_loss")
+    logp_to_keep = completion_ids.size(1)
+    model_logp = utils.get_per_token_logps(
+        model, 
+        prompt_completion_ids,
+        attention_mask,
+        logp_to_keep)
+    
+    with torch.inference_mode():
+        base_model_logp = utils.get_per_token_logps(
+            base_model, 
+            prompt_completion_ids,
+            attention_mask,
+            logp_to_keep)
+    
+    # approximation using taylor to calculate the KL loss
+    r = base_model_logp - model_logp
+    kl_loss = torch.exp(r) - (r) -1
+
+    # Calculating the policy objective loss using the ratio
+    ratio = torch.exp(-r)
+    policy_objective = advantages.unsqueeze(1) * ratio
+
+    total_loss = -policy_objective + args.kl_weight_beta * kl_loss
+
+    #stop dividing by zero 
+    epsilon = 1e-6
+    #computing the length of each completiton mask 
+    completions = completion_mask.sum(dim=1)
+    #calculating the total loss across the whole completion 
+    masked_loss = (total_loss * completion_mask).sum(dim=1) / (completions + epsilon)
+    # Computing the average loss over batch 
+    loss = masked_loss.mean()
+    
+    response_length = completions.float().mean().item()
+
+    masked_kl_loss = (kl_loss * completion_mask).sum(dim=1) / (completions + epsilon)
+    loss_metric = {"kl": masked_kl_loss.mean().item(), "response_length": response_length}
+    return loss, loss_metric
+
 
 def grpo_loss(
         model: PreTrainedModel,
@@ -358,6 +394,7 @@ def grpo_loss(
 
     # Combine metrics
     metrics.update(loss_metrics)
+
 
     return loss, metrics
 
